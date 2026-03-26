@@ -187,9 +187,14 @@ async def get_me(user=Depends(get_current_user)):
 
 # ===================== PRODUCT ROUTES =====================
 @api_router.get("/products")
-async def list_products():
-    products = await db.products.find({"is_active": True}, {"_id": 0}).to_list(500)
-    return products
+async def list_products(page: int = 1, limit: int = 50):
+    limit = min(limit, 100)
+    skip = (page - 1) * limit
+    products = await db.products.find(
+        {"is_active": True}, {"_id": 0, "id": 1, "name": 1, "category": 1, "description": 1, "is_active": 1, "created_at": 1}
+    ).skip(skip).limit(limit).to_list(limit)
+    total = await db.products.count_documents({"is_active": True})
+    return {"items": products, "total": total, "page": page, "limit": limit}
 
 @api_router.post("/products")
 async def create_product(req: ProductCreate, user=Depends(require_admin)):
@@ -225,9 +230,9 @@ async def delete_product(product_id: str, user=Depends(require_admin)):
 # ===================== LEAD ROUTES (BUYER - PUBLIC) =====================
 @api_router.post("/leads")
 async def create_lead(req: LeadCreate):
-    # Check repeat buyer
-    existing_leads = await db.leads.find({"buyer_phone": req.buyer_phone}, {"_id": 0}).to_list(100)
-    is_repeat = len(existing_leads) > 0
+    # Check repeat buyer using count instead of fetching all docs
+    existing_count = await db.leads.count_documents({"buyer_phone": req.buyer_phone})
+    is_repeat = existing_count > 0
 
     lead = {
         "id": str(uuid.uuid4()),
@@ -241,7 +246,7 @@ async def create_lead(req: LeadCreate):
         "source": req.source or "platform",
         "status": "pending",
         "is_repeat_buyer": is_repeat,
-        "submission_count": len(existing_leads) + 1,
+        "submission_count": existing_count + 1,
         "created_at": datetime.now(timezone.utc).isoformat(),
         "verified_at": None
     }
@@ -249,12 +254,15 @@ async def create_lead(req: LeadCreate):
     return {k: v for k, v in lead.items() if k != "_id"}
 
 @api_router.get("/leads")
-async def list_leads(status: Optional[str] = None, user=Depends(require_admin)):
+async def list_leads(status: Optional[str] = None, page: int = 1, limit: int = 50, user=Depends(require_admin)):
     query = {}
     if status:
         query["status"] = status
-    leads = await db.leads.find(query, {"_id": 0}).sort("created_at", -1).to_list(1000)
-    return leads
+    limit = min(limit, 100)
+    skip = (page - 1) * limit
+    leads = await db.leads.find(query, {"_id": 0}).sort("created_at", -1).skip(skip).limit(limit).to_list(limit)
+    total = await db.leads.count_documents(query)
+    return {"items": leads, "total": total, "page": page, "limit": limit}
 
 @api_router.get("/leads/{lead_id}")
 async def get_lead(lead_id: str, user=Depends(get_current_user)):
@@ -340,26 +348,39 @@ async def get_lead_assignments(lead_id: str, user=Depends(require_admin)):
 
 # ===================== SUPPLIER LEAD ROUTES =====================
 @api_router.get("/supplier/leads")
-async def get_supplier_leads(user=Depends(require_supplier)):
+async def get_supplier_leads(page: int = 1, limit: int = 50, user=Depends(require_supplier)):
+    limit = min(limit, 100)
+    skip = (page - 1) * limit
     assignments = await db.lead_assignments.find(
         {"supplier_id": user["id"], "is_expired": False}, {"_id": 0}
-    ).sort("assigned_at", -1).to_list(500)
+    ).sort("assigned_at", -1).skip(skip).limit(limit).to_list(limit)
+    total = await db.lead_assignments.count_documents({"supplier_id": user["id"], "is_expired": False})
 
-    # Enrich with lead data
+    # Batch fetch all lead_ids to avoid N+1 query
+    lead_ids = list({a["lead_id"] for a in assignments})
+    leads_data = {}
+    if lead_ids:
+        leads_cursor = db.leads.find({"id": {"$in": lead_ids}}, {"_id": 0})
+        async for lead_doc in leads_cursor:
+            leads_data[lead_doc["id"]] = lead_doc
+
+    # Collect assignments needing opened_at update
+    now = datetime.now(timezone.utc).isoformat()
+    ids_to_mark_opened = []
     for a in assignments:
-        lead = await db.leads.find_one({"id": a["lead_id"]}, {"_id": 0})
-        if lead:
-            a["lead"] = lead
-
-        # Mark as opened if first time
+        a["lead"] = leads_data.get(a["lead_id"])
         if a["status"] == "new" and not a.get("opened_at"):
-            now = datetime.now(timezone.utc).isoformat()
-            await db.lead_assignments.update_one(
-                {"id": a["id"]}, {"$set": {"opened_at": now}}
-            )
+            ids_to_mark_opened.append(a["id"])
             a["opened_at"] = now
 
-    return assignments
+    # Batch update opened_at
+    if ids_to_mark_opened:
+        await db.lead_assignments.update_many(
+            {"id": {"$in": ids_to_mark_opened}},
+            {"$set": {"opened_at": now}}
+        )
+
+    return {"items": assignments, "total": total, "page": page, "limit": limit}
 
 @api_router.put("/supplier/assignments/{assignment_id}/stage")
 async def update_assignment_stage(assignment_id: str, req: StageUpdate, user=Depends(require_supplier)):
@@ -429,9 +450,16 @@ async def update_supplier_profile(req: SupplierProfileUpdate, user=Depends(requi
 
 # ===================== ADMIN ROUTES =====================
 @api_router.get("/admin/suppliers")
-async def list_suppliers(user=Depends(require_admin)):
-    suppliers = await db.users.find({"role": "supplier"}, {"_id": 0, "password_hash": 0}).sort("performance_score", -1).to_list(500)
-    return suppliers
+async def list_suppliers(page: int = 1, limit: int = 50, user=Depends(require_admin)):
+    limit = min(limit, 100)
+    skip = (page - 1) * limit
+    suppliers = await db.users.find(
+        {"role": "supplier"},
+        {"_id": 0, "id": 1, "name": 1, "email": 1, "company_name": 1, "phone": 1,
+         "supplier_type": 1, "cities_served": 1, "performance_score": 1, "total_won": 1, "total_leads": 1, "is_active": 1}
+    ).sort("performance_score", -1).skip(skip).limit(limit).to_list(limit)
+    total = await db.users.count_documents({"role": "supplier"})
+    return {"items": suppliers, "total": total, "page": page, "limit": limit}
 
 @api_router.get("/admin/metrics")
 async def get_metrics(user=Depends(require_admin)):
@@ -464,9 +492,14 @@ async def get_metrics(user=Depends(require_admin)):
 
 # ===================== SERVICE PROVIDER ROUTES =====================
 @api_router.get("/service-providers")
-async def list_service_providers(user=Depends(require_admin)):
-    providers = await db.service_providers.find({}, {"_id": 0}).sort("created_at", -1).to_list(500)
-    return providers
+async def list_service_providers(page: int = 1, limit: int = 50, user=Depends(require_admin)):
+    limit = min(limit, 100)
+    skip = (page - 1) * limit
+    providers = await db.service_providers.find(
+        {}, {"_id": 0}
+    ).sort("created_at", -1).skip(skip).limit(limit).to_list(limit)
+    total = await db.service_providers.count_documents({})
+    return {"items": providers, "total": total, "page": page, "limit": limit}
 
 @api_router.post("/service-providers")
 async def create_service_provider(req: ServiceProviderCreate, user=Depends(require_admin)):

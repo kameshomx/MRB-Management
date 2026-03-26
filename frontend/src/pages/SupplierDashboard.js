@@ -33,10 +33,10 @@ export default function SupplierDashboard() {
   const fetchData = useCallback(async () => {
     try {
       const [leadsRes, badgesRes] = await Promise.all([
-        api.get("/supplier/leads"),
+        api.get("/supplier/leads?limit=100"),
         api.get("/supplier/badges")
       ]);
-      setLeads(leadsRes.data);
+      setLeads(leadsRes.data.items || leadsRes.data);
       setBadges(badgesRes.data);
     } catch (err) {
       toast.error("Failed to load data");

@@ -44,16 +44,16 @@ export default function AdminDashboard() {
     try {
       const [m, l, s, p, sp] = await Promise.all([
         api.get("/admin/metrics"),
-        api.get("/leads"),
-        api.get("/admin/suppliers"),
-        api.get("/products"),
-        api.get("/service-providers")
+        api.get("/leads?limit=100"),
+        api.get("/admin/suppliers?limit=100"),
+        api.get("/products?limit=100"),
+        api.get("/service-providers?limit=100")
       ]);
       setMetrics(m.data);
-      setLeads(l.data);
-      setSuppliers(s.data);
-      setProducts(p.data);
-      setServiceProviders(sp.data);
+      setLeads(l.data.items || l.data);
+      setSuppliers(s.data.items || s.data);
+      setProducts(p.data.items || p.data);
+      setServiceProviders(sp.data.items || sp.data);
     } catch (err) {
       toast.error("Failed to load dashboard data");
     }

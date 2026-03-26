@@ -31,7 +31,7 @@ export default function BuyerPage() {
   const [submitted, setSubmitted] = useState(false);
 
   useEffect(() => {
-    api.get("/products").then(r => setProducts(r.data)).catch(() => {});
+    api.get("/products").then(r => setProducts(r.data.items || r.data)).catch(() => {});
     api.get("/public/cities").then(r => setCities(r.data)).catch(() => {});
     api.get("/public/suppliers").then(r => setSuppliers(r.data)).catch(() => {});
   }, []);
