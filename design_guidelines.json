@@ -1,0 +1,133 @@
+{
+  "theme": "light",
+  "archetype": "4 (Swiss & High-Contrast)",
+  "emotional_tone": "Authoritative, Structural, Reliable, Transparent",
+  "typography": {
+    "heading_font": "Cabinet Grotesk, sans-serif",
+    "body_font": "Manrope, sans-serif",
+    "mono_font": "JetBrains Mono, monospace",
+    "rules": {
+      "h1": "text-4xl sm:text-5xl lg:text-6xl font-black tracking-tighter uppercase",
+      "h2": "text-2xl sm:text-3xl lg:text-4xl font-bold tracking-tight",
+      "h3": "text-xl sm:text-2xl font-bold tracking-tight",
+      "h4": "text-lg sm:text-xl font-bold",
+      "body": "text-base leading-relaxed text-neutral-800",
+      "small": "text-sm text-neutral-600",
+      "overline": "text-xs font-bold uppercase tracking-[0.2em] text-orange-600 font-mono",
+      "general": "No 'Inter' or generic sans for headings. Use heavy weights for impact."
+    }
+  },
+  "colors": {
+    "background": {
+      "primary": "#FFFFFF",
+      "secondary": "#F3F4F6",
+      "tertiary": "#E5E7EB"
+    },
+    "text": {
+      "primary": "#0A0A0A",
+      "secondary": "#4B5563",
+      "muted": "#9CA3AF"
+    },
+    "brand": {
+      "primary": "#FF5A1F",
+      "primary_hover": "#EA580C",
+      "accent": "#FACC15",
+      "success": "#16A34A",
+      "warning": "#F59E0B",
+      "error": "#DC2626"
+    },
+    "border": {
+      "default": "#E5E7EB",
+      "focus": "#FF5A1F",
+      "dark": "#1F2937"
+    },
+    "rules": {
+      "contrast": "Text must meet WCAG AA 4.5:1. Never use pure #000000, use #0A0A0A.",
+      "hover": "Always explicitly set text color on hover. Primary brand color for CTAs only."
+    }
+  },
+  "spacing_and_layout": {
+    "philosophy": "Generous spacing. Strict grid hierarchy. Structural and engineered.",
+    "scale": "p-4, p-6, p-8, p-12, p-16, p-24, p-32",
+    "grid_bento": {
+      "dashboard": "grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-4 or gap-6. Every pixel utilized. h-full on children.",
+      "catalog": "grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8. Tetris style layout."
+    },
+    "borders": "Containers with borders must have internal padding (p-6 or p-8). Use border-collapse for grid tables.",
+    "alignment": "Optical alignment over geometrical. Left-align dense content. Left-align lists and forms."
+  },
+  "surface_styles": {
+    "cards": "Flat background (bg-white), 1px subtle border (border-neutral-200), rounded-sm (max 2px radius). No soft shadows.",
+    "dashboard_cards": "Use 'Grid Borders' look. border-r border-b border-border/40. Functional, raw data look.",
+    "buttons": "Flat solid surfaces. Sharp corners (rounded-none or rounded-sm). High contrast.",
+    "headers": "Solid background (bg-white/95) with hard bottom border (border-b border-neutral-200) and backdrop-blur-sm. z-50.",
+    "footers": "Dark background (bg-neutral-900) to contrast with light body. Massive space (py-20)."
+  },
+  "animations": {
+    "hover": "Slight lift (-translate-y-1), crisp shadow (shadow-[4px_4px_0px_#0A0A0A]), border color darkens.",
+    "transitions": "transition-transform duration-200 ease-out, transition-colors duration-200",
+    "focus": "focus:ring-2 focus:ring-orange-500 focus:outline-none"
+  },
+  "components": {
+    "strategy": "Shadcn heavily customized for 'Swiss Brutalist' look. Strip soft radiuses, add sharp borders.",
+    "buttons": "Primary: bg-orange-600 text-white hover:bg-orange-700. Secondary: bg-neutral-100 text-neutral-900 border border-neutral-200 hover:bg-neutral-200.",
+    "inputs": "Shadcn input with rounded-sm, focus:ring-orange-500, border-neutral-300.",
+    "tables": "Dense, crisp lines. border-collapse. text-sm.",
+    "badges": "Square corners. e.g., 'First Responder' -> bg-yellow-100 text-yellow-800 border border-yellow-300 rounded-sm.",
+    "icons": "Phosphor Icons (@phosphor-icons/react) - Regular or Bold weight for industrial feel.",
+    "testing": "All interactive elements MUST have data-testid attributes."
+  },
+  "media": {
+    "images": {
+      "hero_background": {
+        "url": "https://static.prod-images.emergentagent.com/jobs/aab0f188-6464-460a-9dbf-da42e234571a/images/b37499c3fbf644fb275339c03091d805b37cbfcacda7ea42e949645fcf5cc081.png",
+        "description": "Abstract architectural blueprint grid with structural steel scaffolding elements."
+      },
+      "product_clamp": {
+        "url": "https://static.prod-images.emergentagent.com/jobs/aab0f188-6464-460a-9dbf-da42e234571a/images/9e4c37a4eb7160bd566251f31304f0499c3a3dcbd76a7b7e7adf4598ffd30dfb.png",
+        "description": "3D rendering of a premium steel scaffolding clamp and steel pipe."
+      },
+      "scaffolding_site_1": {
+        "url": "https://images.unsplash.com/photo-1619486219569-ecd80122d117?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NTY2NzZ8MHwxfHNlYXJjaHwzfHxzY2FmZm9sZGluZyUyMGNvbnN0cnVjdGlvbiUyMHNpdGV8ZW58MHx8fHwxNzc0NTUwMTQ2fDA&ixlib=rb-4.1.0&q=85",
+        "description": "Grayscale photo of metal frame scaffolding, good for texture or background."
+      },
+      "industrial_machinery": {
+        "url": "https://images.unsplash.com/photo-1773517460230-15928a2adc4e?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NDQ2NDJ8MHwxfHNlYXJjaHwxfHxtZXRhbCUyMHBpcGUlMjBtYWNoaW5lcnl8ZW58MHx8fHwxNzc0NTUwMTY4fDA&ixlib=rb-4.1.0&q=85",
+        "description": "Industrial pipes and valves for product catalog examples."
+      },
+      "rusty_pipes": {
+        "url": "https://images.pexels.com/photos/208661/pexels-photo-208661.jpeg?auto=compress&cs=tinysrgb&dpr=2&h=650&w=940",
+        "description": "Rusty industrial structure for secondary visual assets."
+      }
+    },
+    "avatars": {
+      "supplier_1": {
+        "url": "https://images.unsplash.com/photo-1646227655685-a530813759b3?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NTY2Njl8MHwxfHNlYXJjaHw0fHxjb25zdHJ1Y3Rpb24lMjB3b3JrZXIlMjBwb3J0cmFpdHxlbnwwfHx8fDE3NzQ1NTAxNjh8MA&ixlib=rb-4.1.0&q=85",
+        "description": "Construction worker portrait, white hard hat."
+      },
+      "supplier_2": {
+        "url": "https://images.unsplash.com/photo-1672748341520-6a839e6c05bb?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NTY2Njl8MHwxfHNlYXJjaHwxfHxjb25zdHJ1Y3Rpb24lMjB3b3JrZXIlMjBwb3J0cmFpdHxlbnwwfHx8fDE3NzQ1NTAxNjh8MA&ixlib=rb-4.1.0&q=85",
+        "description": "Construction worker portrait, red hard hat."
+      }
+    },
+    "logos": {
+      "brand_logo": {
+        "url": "https://images.unsplash.com/photo-1599305445671-ac291c95aaa9?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NTYxOTJ8MHwxfHNlYXJjaHwxfHxpbmR1c3RyaWFsJTIwbG9nb3xlbnwwfHx8fDE3NzQ1NTAxNjl8MA&ixlib=rb-4.1.0&q=85",
+        "description": "Metallic industrial logo suitable for mock supplier brand."
+      }
+    }
+  },
+  "instructions_to_main_agent": [
+    "Do not use generic Inter font for headings; stick to Cabinet Grotesk or similar bold grotesque fonts.",
+    "Implement pure HTML+Tailwind for the Buyer Marketing page, emphasizing heavy typography and structural lines.",
+    "Use Shadcn UI for the Supplier and Admin dashboards, but override soft rounded corners with rounded-none or rounded-sm (max 2px).",
+    "Replace soft shadows with hard 4px solid black/dark shadows (Neo-brutalist touch) to fit the construction scaffolding theme.",
+    "Every interactive element MUST include a data-testid attribute in kebab-case format (e.g., data-testid='submit-rfq-button').",
+    "Apply 'Grid Borders' concept in dashboards: visible border lines separating columns and rows to mimic a scaffolding structure.",
+    "Make heavy use of JetBrains Mono for metadata like lead IDs, timestamps, and measurements.",
+    "Ensure the layout is highly responsive and functional on mobile, using mobile-first tailwind prefixes.",
+    "NEVER use placeholder domains (e.g., via.placeholder.com). Strictly use the URLs provided in the media section.",
+    "Make the buyer cart-style RFQ submission flow seamless with sticky bottom bars or side summaries.",
+    "For icons, install and use @phosphor-icons/react."
+  ]
+}
