@@ -294,8 +294,14 @@ async def assign_lead(lead_id: str, req: LeadAssign, user=Depends(require_admin)
         raise HTTPException(status_code=404, detail="Lead not found")
     if lead["status"] != "verified":
         raise HTTPException(status_code=400, detail="Only verified leads can be assigned")
-    if len(req.supplier_ids) < 5 or len(req.supplier_ids) > 7:
-        raise HTTPException(status_code=400, detail="Must assign 5-7 suppliers")
+    if len(req.supplier_ids) < 1 or len(req.supplier_ids) > 7:
+        raise HTTPException(status_code=400, detail="Must assign 1-7 suppliers")
+
+    # Validate: if 5+ suppliers exist, require at least 5
+    total_suppliers = await db.users.count_documents({"role": "supplier", "is_active": True})
+    min_required = min(5, total_suppliers)
+    if len(req.supplier_ids) < min_required:
+        raise HTTPException(status_code=400, detail=f"Must assign at least {min_required} suppliers (5 recommended, {total_suppliers} available)")
 
     # Remove existing assignments for this lead
     await db.lead_assignments.delete_many({"lead_id": lead_id})

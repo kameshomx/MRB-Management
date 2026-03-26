@@ -70,14 +70,15 @@ export default function AdminDashboard() {
     } catch (err) { toast.error(err.response?.data?.detail || "Failed to update"); }
   };
 
+
   const openAssign = async (lead) => {
     setAssignDialog(lead);
     setSelectedSuppliers([]);
   };
 
   const assignLead = async () => {
-    if (selectedSuppliers.length < 5 || selectedSuppliers.length > 7) {
-      toast.error("Select 5-7 suppliers");
+    if (selectedSuppliers.length < minRequired || selectedSuppliers.length > 7) {
+      toast.error(`Select ${minRequired}-7 suppliers`);
       return;
     }
     try {
@@ -133,6 +134,8 @@ export default function AdminDashboard() {
   const filteredLeads = leadFilter === "all" ? leads : leads.filter(l => l.status === leadFilter);
   const citySuppliers = assignDialog ? suppliers.filter(s => s.cities_served?.includes(assignDialog.city)) : [];
   const otherSuppliers = assignDialog ? suppliers.filter(s => !s.cities_served?.includes(assignDialog.city)) : [];
+  const totalAvailable = citySuppliers.length + otherSuppliers.length;
+  const minRequired = Math.min(5, totalAvailable || 1);
 
   return (
     <div className="min-h-screen bg-[#F3F4F6]">
@@ -430,7 +433,7 @@ export default function AdminDashboard() {
                 <p><strong>City:</strong> {assignDialog.city}</p>
                 <p><strong>Items:</strong> {assignDialog.items?.map(i => i.product_name).join(", ")}</p>
               </div>
-              <p className="text-sm text-neutral-600">Select <strong>5-7 suppliers</strong> ({selectedSuppliers.length} selected)</p>
+              <p className="text-sm text-neutral-600">Select <strong>{minRequired}-7 suppliers</strong> ({selectedSuppliers.length} selected{totalAvailable < 5 ? `, ${totalAvailable} available` : ""})</p>
 
               {citySuppliers.length > 0 && (
                 <div>
@@ -462,7 +465,7 @@ export default function AdminDashboard() {
                 </div>
               )}
 
-              <Button data-testid="confirm-assign-btn" onClick={assignLead} disabled={selectedSuppliers.length < 5 || selectedSuppliers.length > 7}
+              <Button data-testid="confirm-assign-btn" onClick={assignLead} disabled={selectedSuppliers.length < minRequired || selectedSuppliers.length > 7}
                 className="w-full rounded-sm bg-orange-600 hover:bg-orange-700 text-white font-bold">
                 Assign to {selectedSuppliers.length} Suppliers
               </Button>
