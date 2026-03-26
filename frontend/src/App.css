@@ -1,34 +1,60 @@
-.App-logo {
-    height: 40vmin;
-    pointer-events: none;
+/* MRB Listing Platform - Component Styles */
+
+/* Hard shadow for cards on hover */
+.card-hover:hover {
+  transform: translateY(-2px);
+  box-shadow: 4px 4px 0px #0A0A0A;
 }
 
-@media (prefers-reduced-motion: no-preference) {
-    .App-logo {
-        animation: App-logo-spin infinite 20s linear;
-    }
+.card-hover {
+  transition: transform 200ms ease-out, box-shadow 200ms ease-out;
 }
 
-.App-header {
-    background-color: #0f0f10;
-    min-height: 100vh;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    font-size: calc(10px + 2vmin);
-    color: white;
+/* Badge styles */
+.badge-first-responder {
+  background: #fef3c7;
+  color: #92400e;
+  border: 1px solid #fcd34d;
 }
 
-.App-link {
-    color: #61dafb;
+.badge-top-supplier {
+  background: #dcfce7;
+  color: #166534;
+  border: 1px solid #86efac;
 }
 
-@keyframes App-logo-spin {
-    from {
-        transform: rotate(0deg);
-    }
-    to {
-        transform: rotate(360deg);
-    }
+/* Grid border pattern for dashboards */
+.grid-border > * {
+  border-right: 1px solid #e5e7eb;
+  border-bottom: 1px solid #e5e7eb;
 }
+
+/* Pipeline stages */
+.stage-new { border-left: 3px solid #3b82f6; }
+.stage-contacted { border-left: 3px solid #f59e0b; }
+.stage-quotation_sent { border-left: 3px solid #8b5cf6; }
+.stage-won { border-left: 3px solid #16a34a; }
+.stage-lost { border-left: 3px solid #dc2626; }
+
+/* Hero pattern overlay */
+.hero-pattern {
+  background-image: 
+    linear-gradient(rgba(255,255,255,0.92), rgba(255,255,255,0.85)),
+    url('https://static.prod-images.emergentagent.com/jobs/aab0f188-6464-460a-9dbf-da42e234571a/images/b37499c3fbf644fb275339c03091d805b37cbfcacda7ea42e949645fcf5cc081.png');
+  background-size: cover;
+  background-position: center;
+}
+
+/* Animate entrance */
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.animate-fade-in {
+  animation: fadeInUp 0.4s ease-out forwards;
+}
+
+.animate-fade-in-delay-1 { animation-delay: 0.1s; opacity: 0; }
+.animate-fade-in-delay-2 { animation-delay: 0.2s; opacity: 0; }
+.animate-fade-in-delay-3 { animation-delay: 0.3s; opacity: 0; }
