@@ -179,7 +179,7 @@ export default function SupplierDashboard() {
                           <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-neutral-600">
                             <span className="flex items-center gap-1"><MapPin size={14} /> {assignment.lead.city}</span>
                             <span className="flex items-center gap-1"><Package size={14} /> {assignment.lead.items?.length || 0} items</span>
-                            <span className="flex items-center gap-1"><CalendarBlank size={14} /> {assignment.lead.start_date} - {assignment.lead.end_date}</span>
+                            <span className="flex items-center gap-1"><CalendarBlank size={14} /> {assignment.lead.start_date} &middot; {assignment.lead.duration}</span>
                           </div>
                         )}
                       </div>
@@ -231,7 +231,7 @@ export default function SupplierDashboard() {
                 </div>
                 <div className="p-3 bg-neutral-50 rounded-sm border border-neutral-200">
                   <p className="text-xs text-neutral-500 font-mono uppercase">Duration</p>
-                  <p className="font-bold text-sm">{selectedLead.lead.start_date} - {selectedLead.lead.end_date}</p>
+                  <p className="font-bold text-sm">{selectedLead.lead.start_date} &middot; {selectedLead.lead.duration}</p>
                 </div>
               </div>
 

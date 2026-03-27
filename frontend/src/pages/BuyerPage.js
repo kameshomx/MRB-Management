@@ -9,21 +9,28 @@ import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { format } from "date-fns";
 import { toast } from "sonner";
-import { Plus, Trash, CalendarBlank, Package, MapPin, Phone, Buildings, PaperPlaneTilt, HardHat, ArrowRight } from "@phosphor-icons/react";
+import { CalendarBlank, Package, MapPin, Phone, Buildings, PaperPlaneTilt, HardHat, ArrowRight, CheckCircle, Plus, Minus, X } from "@phosphor-icons/react";
 import api from "@/lib/api";
+
+const DURATION_OPTIONS = [
+  "1 Month", "2 Months", "3 Months", "4 Months", "5 Months", "6 Months",
+  "9 Months", "1 Year", "1.5 Years", "2 Years", "3 Years"
+];
 
 export default function BuyerPage() {
   const navigate = useNavigate();
   const [products, setProducts] = useState([]);
   const [cities, setCities] = useState([]);
   const [suppliers, setSuppliers] = useState([]);
-  const [items, setItems] = useState([]);
-  const [selectedProduct, setSelectedProduct] = useState("");
+  const [selectedProducts, setSelectedProducts] = useState({});
+  const [showCustom, setShowCustom] = useState(false);
   const [customProduct, setCustomProduct] = useState("");
-  const [quantity, setQuantity] = useState("");
+  const [customQty, setCustomQty] = useState("");
+  const [customItems, setCustomItems] = useState([]);
   const [city, setCity] = useState("");
   const [startDate, setStartDate] = useState(null);
-  const [endDate, setEndDate] = useState(null);
+  const [duration, setDuration] = useState("");
+  const [customDuration, setCustomDuration] = useState("");
   const [phone, setPhone] = useState("");
   const [buyerName, setBuyerName] = useState("");
   const [company, setCompany] = useState("");
@@ -36,25 +43,53 @@ export default function BuyerPage() {
     api.get("/public/suppliers").then(r => setSuppliers(r.data)).catch(() => {});
   }, []);
 
-  const addItem = () => {
-    const name = selectedProduct || customProduct;
-    if (!name || !quantity || parseInt(quantity) <= 0) {
-      toast.error("Select a product and enter quantity");
-      return;
-    }
-    const product = products.find(p => p.name === selectedProduct);
-    setItems([...items, { product_name: name, product_id: product?.id || null, quantity: parseInt(quantity) }]);
-    setSelectedProduct("");
-    setCustomProduct("");
-    setQuantity("");
+  const toggleProduct = (product) => {
+    setSelectedProducts(prev => {
+      const next = { ...prev };
+      if (next[product.id]) {
+        delete next[product.id];
+      } else {
+        next[product.id] = { ...product, quantity: 1 };
+      }
+      return next;
+    });
   };
 
-  const removeItem = (idx) => setItems(items.filter((_, i) => i !== idx));
+  const updateQuantity = (productId, qty) => {
+    const val = Math.max(1, parseInt(qty) || 1);
+    setSelectedProducts(prev => ({
+      ...prev,
+      [productId]: { ...prev[productId], quantity: val }
+    }));
+  };
+
+  const addCustomItem = () => {
+    if (!customProduct.trim() || !customQty || parseInt(customQty) <= 0) {
+      toast.error("Enter product name and quantity");
+      return;
+    }
+    setCustomItems(prev => [...prev, { product_name: customProduct.trim(), quantity: parseInt(customQty) }]);
+    setCustomProduct("");
+    setCustomQty("");
+  };
+
+  const removeCustomItem = (idx) => {
+    setCustomItems(prev => prev.filter((_, i) => i !== idx));
+  };
 
   const handleSubmit = async () => {
-    if (items.length === 0) { toast.error("Add at least one product"); return; }
+    const catalogItems = Object.values(selectedProducts).map(p => ({
+      product_name: p.name,
+      product_id: p.id,
+      quantity: p.quantity
+    }));
+    const allItems = [...catalogItems, ...customItems];
+
+    if (allItems.length === 0) { toast.error("Select at least one product"); return; }
     if (!city) { toast.error("Select a city"); return; }
-    if (!startDate || !endDate) { toast.error("Select start and end dates"); return; }
+    if (!startDate) { toast.error("Select a start date"); return; }
+    const finalDuration = duration === "custom" ? customDuration : duration;
+    if (!finalDuration) { toast.error("Select or enter duration"); return; }
     if (!phone || phone.length < 10) { toast.error("Enter a valid phone number"); return; }
 
     setSubmitting(true);
@@ -65,8 +100,8 @@ export default function BuyerPage() {
         buyer_company: company,
         city,
         start_date: format(startDate, "yyyy-MM-dd"),
-        end_date: format(endDate, "yyyy-MM-dd"),
-        items,
+        duration: finalDuration,
+        items: allItems,
         source: "platform"
       });
       toast.success("Requirement submitted successfully!");
@@ -87,7 +122,7 @@ export default function BuyerPage() {
             </div>
             <h2 className="text-2xl font-bold mb-2">Requirement Submitted</h2>
             <p className="text-neutral-600 mb-6">Our team will verify and connect you with the best suppliers in your area.</p>
-            <Button data-testid="submit-another-btn" onClick={() => { setSubmitted(false); setItems([]); setPhone(""); setBuyerName(""); setCompany(""); setCity(""); setStartDate(null); setEndDate(null); }} className="bg-orange-600 hover:bg-orange-700 text-white rounded-sm w-full">
+            <Button data-testid="submit-another-btn" onClick={() => { setSubmitted(false); setSelectedProducts({}); setCustomItems([]); setPhone(""); setBuyerName(""); setCompany(""); setCity(""); setStartDate(null); setDuration(""); setCustomDuration(""); }} className="bg-orange-600 hover:bg-orange-700 text-white rounded-sm w-full">
               Submit Another Requirement
             </Button>
           </CardContent>
@@ -95,6 +130,8 @@ export default function BuyerPage() {
       </div>
     );
   }
+
+  const selectedCount = Object.keys(selectedProducts).length + customItems.length;
 
   return (
     <div className="min-h-screen bg-white">
@@ -133,86 +170,148 @@ export default function BuyerPage() {
 
       {/* RFQ Form */}
       <section id="rfq-form" className="py-16 bg-[#F3F4F6]" data-testid="rfq-form-section">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="overline mb-3">Step 1 of 2</div>
-          <h2 className="text-2xl sm:text-3xl font-bold tracking-tight mb-8">Add Your Requirements</h2>
+        <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="overline mb-3">Step 1: Select Products</div>
+          <h2 className="text-2xl sm:text-3xl font-bold tracking-tight mb-2">What do you need?</h2>
+          <p className="text-neutral-500 text-sm mb-8">Tap to select products, then set quantities for each</p>
 
-          {/* Product Selection */}
-          <Card className="rounded-sm border-neutral-200 mb-6">
-            <CardHeader className="border-b border-neutral-200 pb-4">
-              <CardTitle className="text-lg flex items-center gap-2">
-                <Package size={20} weight="bold" className="text-orange-600" />
-                Products
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="p-6">
-              <div className="flex flex-col sm:flex-row gap-3 mb-4">
-                <div className="flex-1">
-                  <Select value={selectedProduct} onValueChange={(v) => { setSelectedProduct(v); setCustomProduct(""); }}>
-                    <SelectTrigger data-testid="product-select" className="rounded-sm border-neutral-300">
-                      <SelectValue placeholder="Select from catalog" />
+          {/* Product Grid */}
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4 mb-6">
+            {products.map(p => {
+              const isSelected = !!selectedProducts[p.id];
+              return (
+                <div
+                  key={p.id}
+                  data-testid={`product-card-${p.id}`}
+                  onClick={() => toggleProduct(p)}
+                  className={`cursor-pointer rounded-sm border-2 transition-all overflow-hidden ${
+                    isSelected
+                      ? "border-orange-500 shadow-[3px_3px_0px_#FF5A1F] bg-orange-50"
+                      : "border-neutral-200 hover:border-neutral-400 bg-white"
+                  }`}
+                >
+                  <div className="relative aspect-square bg-neutral-100">
+                    {p.image_url ? (
+                      <img src={p.image_url} alt={p.name} className="w-full h-full object-cover" loading="lazy" />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center">
+                        <Package size={40} className="text-neutral-300" />
+                      </div>
+                    )}
+                    {isSelected && (
+                      <div className="absolute top-2 right-2 w-7 h-7 bg-orange-600 rounded-sm flex items-center justify-center">
+                        <CheckCircle size={18} weight="fill" className="text-white" />
+                      </div>
+                    )}
+                  </div>
+                  <div className="p-3">
+                    <p className="text-sm font-bold leading-tight">{p.name}</p>
+                    <p className="text-xs text-neutral-500 mt-0.5">{p.category}</p>
+                  </div>
+                </div>
+              );
+            })}
+
+            {/* Add Custom Product Card */}
+            <div
+              data-testid="add-custom-product-card"
+              onClick={() => setShowCustom(true)}
+              className="cursor-pointer rounded-sm border-2 border-dashed border-neutral-300 hover:border-orange-400 bg-white flex flex-col items-center justify-center min-h-[200px] transition-all"
+            >
+              <Plus size={32} className="text-neutral-400 mb-2" />
+              <p className="text-sm font-bold text-neutral-500">Add Custom</p>
+              <p className="text-xs text-neutral-400">Product</p>
+            </div>
+          </div>
+
+          {/* Custom Product Input */}
+          {showCustom && (
+            <Card className="rounded-sm border-neutral-200 mb-6" data-testid="custom-product-section">
+              <CardContent className="p-4">
+                <div className="flex flex-col sm:flex-row gap-3">
+                  <Input data-testid="custom-product-input" placeholder="Product name" value={customProduct} onChange={(e) => setCustomProduct(e.target.value)} className="flex-1 rounded-sm border-neutral-300" />
+                  <Input data-testid="custom-quantity-input" type="number" placeholder="Qty" value={customQty} onChange={(e) => setCustomQty(e.target.value)} className="w-24 rounded-sm border-neutral-300" />
+                  <Button data-testid="add-custom-btn" onClick={addCustomItem} className="bg-neutral-900 hover:bg-neutral-800 text-white rounded-sm">
+                    <Plus size={16} className="mr-1" /> Add
+                  </Button>
+                  <Button variant="outline" onClick={() => setShowCustom(false)} className="rounded-sm border-neutral-300">
+                    <X size={16} />
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Selected Products with Quantities */}
+          {(Object.keys(selectedProducts).length > 0 || customItems.length > 0) && (
+            <Card className="rounded-sm border-orange-200 bg-orange-50/50 mb-8" data-testid="selected-products-section">
+              <CardHeader className="border-b border-orange-200 pb-3 pt-4 px-4">
+                <CardTitle className="text-base flex items-center gap-2">
+                  <CheckCircle size={18} weight="bold" className="text-orange-600" />
+                  Selected Products ({selectedCount})
+                  <span className="text-xs text-neutral-500 font-normal ml-auto">Set quantity for each</span>
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="p-0">
+                {Object.values(selectedProducts).map(p => (
+                  <div key={p.id} className="flex items-center gap-3 px-4 py-3 border-b border-orange-100 last:border-0" data-testid={`selected-item-${p.id}`}>
+                    <div className="w-10 h-10 rounded-sm overflow-hidden bg-neutral-100 flex-shrink-0">
+                      {p.image_url ? <img src={p.image_url} alt="" className="w-full h-full object-cover" /> : <Package size={20} className="text-neutral-300 m-auto mt-2.5" />}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-bold truncate">{p.name}</p>
+                      <p className="text-xs text-neutral-500">{p.category}</p>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <button data-testid={`qty-minus-${p.id}`} onClick={(e) => { e.stopPropagation(); updateQuantity(p.id, p.quantity - 1); }} className="w-8 h-8 flex items-center justify-center border border-neutral-300 rounded-sm hover:bg-neutral-100">
+                        <Minus size={14} />
+                      </button>
+                      <Input data-testid={`qty-input-${p.id}`} type="number" value={p.quantity} onChange={(e) => updateQuantity(p.id, e.target.value)}
+                        className="w-16 h-8 text-center rounded-sm border-neutral-300 text-sm font-mono" />
+                      <button data-testid={`qty-plus-${p.id}`} onClick={(e) => { e.stopPropagation(); updateQuantity(p.id, p.quantity + 1); }} className="w-8 h-8 flex items-center justify-center border border-neutral-300 rounded-sm hover:bg-neutral-100">
+                        <Plus size={14} />
+                      </button>
+                    </div>
+                    <button data-testid={`remove-product-${p.id}`} onClick={() => toggleProduct(p)} className="text-red-500 hover:text-red-700 ml-1">
+                      <X size={16} weight="bold" />
+                    </button>
+                  </div>
+                ))}
+                {customItems.map((item, idx) => (
+                  <div key={`custom-${idx}`} className="flex items-center gap-3 px-4 py-3 border-b border-orange-100 last:border-0" data-testid={`custom-item-${idx}`}>
+                    <div className="w-10 h-10 rounded-sm bg-neutral-100 flex-shrink-0 flex items-center justify-center">
+                      <Package size={20} className="text-neutral-300" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-bold truncate">{item.product_name}</p>
+                      <p className="text-xs text-neutral-500">Custom</p>
+                    </div>
+                    <span className="font-mono text-sm font-bold">{item.quantity}</span>
+                    <button data-testid={`remove-custom-${idx}`} onClick={() => removeCustomItem(idx)} className="text-red-500 hover:text-red-700 ml-1">
+                      <X size={16} weight="bold" />
+                    </button>
+                  </div>
+                ))}
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Project Details */}
+          <div className="overline mb-3 mt-8">Step 2: Project Details</div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+            <Card className="rounded-sm border-neutral-200">
+              <CardContent className="p-5 space-y-4">
+                <div>
+                  <label className="text-sm font-medium text-neutral-700 mb-1 block">City *</label>
+                  <Select value={city} onValueChange={setCity}>
+                    <SelectTrigger data-testid="city-select" className="rounded-sm border-neutral-300">
+                      <SelectValue placeholder="Select city" />
                     </SelectTrigger>
                     <SelectContent>
-                      {products.map(p => (
-                        <SelectItem key={p.id} value={p.name}>{p.name}</SelectItem>
-                      ))}
+                      {cities.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
                     </SelectContent>
                   </Select>
                 </div>
-                <span className="text-neutral-400 self-center text-sm">or</span>
-                <Input data-testid="custom-product-input" placeholder="Custom product name" value={customProduct} onChange={(e) => { setCustomProduct(e.target.value); setSelectedProduct(""); }} className="flex-1 rounded-sm border-neutral-300" />
-              </div>
-              <div className="flex gap-3">
-                <Input data-testid="quantity-input" type="number" placeholder="Quantity" value={quantity} onChange={(e) => setQuantity(e.target.value)} className="w-32 rounded-sm border-neutral-300" />
-                <Button data-testid="add-item-btn" onClick={addItem} className="bg-neutral-900 hover:bg-neutral-800 text-white rounded-sm">
-                  <Plus size={18} weight="bold" className="mr-1" /> Add Item
-                </Button>
-              </div>
-
-              {/* Cart Items */}
-              {items.length > 0 && (
-                <div className="mt-6 border border-neutral-200 rounded-sm">
-                  <div className="px-4 py-2 bg-neutral-50 border-b border-neutral-200 flex justify-between text-xs font-bold uppercase tracking-wider text-neutral-500 font-mono">
-                    <span>Product</span>
-                    <span>Qty</span>
-                  </div>
-                  {items.map((item, idx) => (
-                    <div key={idx} className="px-4 py-3 flex items-center justify-between border-b border-neutral-100 last:border-0" data-testid={`cart-item-${idx}`}>
-                      <span className="text-sm font-medium">{item.product_name}</span>
-                      <div className="flex items-center gap-3">
-                        <span className="font-mono text-sm">{item.quantity}</span>
-                        <button onClick={() => removeItem(idx)} className="text-red-500 hover:text-red-700" data-testid={`remove-item-${idx}`}>
-                          <Trash size={16} weight="bold" />
-                        </button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </CardContent>
-          </Card>
-
-          {/* Details */}
-          <Card className="rounded-sm border-neutral-200 mb-6">
-            <CardHeader className="border-b border-neutral-200 pb-4">
-              <CardTitle className="text-lg flex items-center gap-2">
-                <MapPin size={20} weight="bold" className="text-orange-600" />
-                Project Details
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="p-6 space-y-4">
-              <div>
-                <label className="text-sm font-medium text-neutral-700 mb-1 block">City *</label>
-                <Select value={city} onValueChange={setCity}>
-                  <SelectTrigger data-testid="city-select" className="rounded-sm border-neutral-300">
-                    <SelectValue placeholder="Select city" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {cities.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="text-sm font-medium text-neutral-700 mb-1 block">Start Date *</label>
                   <Popover>
@@ -226,35 +325,29 @@ export default function BuyerPage() {
                   </Popover>
                 </div>
                 <div>
-                  <label className="text-sm font-medium text-neutral-700 mb-1 block">End Date *</label>
-                  <Popover>
-                    <PopoverTrigger asChild>
-                      <Button data-testid="end-date-btn" variant="outline" className="w-full justify-start rounded-sm border-neutral-300 font-normal">
-                        <CalendarBlank size={16} className="mr-2 text-neutral-500" />
-                        {endDate ? format(endDate, "dd MMM yyyy") : "Pick a date"}
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-auto p-0"><Calendar mode="single" selected={endDate} onSelect={setEndDate} /></PopoverContent>
-                  </Popover>
+                  <label className="text-sm font-medium text-neutral-700 mb-1 block">Duration *</label>
+                  <Select value={duration} onValueChange={(v) => { setDuration(v); if (v !== "custom") setCustomDuration(""); }}>
+                    <SelectTrigger data-testid="duration-select" className="rounded-sm border-neutral-300">
+                      <SelectValue placeholder="Select duration" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {DURATION_OPTIONS.map(d => <SelectItem key={d} value={d}>{d}</SelectItem>)}
+                      <SelectItem value="custom">Custom (type your own)</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  {duration === "custom" && (
+                    <Input data-testid="custom-duration-input" placeholder='e.g. "45 Days" or "8 Months"' value={customDuration} onChange={(e) => setCustomDuration(e.target.value)} className="mt-2 rounded-sm border-neutral-300" />
+                  )}
                 </div>
-              </div>
-            </CardContent>
-          </Card>
+              </CardContent>
+            </Card>
 
-          {/* Contact */}
-          <Card className="rounded-sm border-neutral-200 mb-6">
-            <CardHeader className="border-b border-neutral-200 pb-4">
-              <CardTitle className="text-lg flex items-center gap-2">
-                <Phone size={20} weight="bold" className="text-orange-600" />
-                Contact Information
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="p-6 space-y-4">
-              <div>
-                <label className="text-sm font-medium text-neutral-700 mb-1 block">Contact Number *</label>
-                <Input data-testid="phone-input" placeholder="Enter 10-digit phone number" value={phone} onChange={(e) => setPhone(e.target.value)} className="rounded-sm border-neutral-300" />
-              </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <Card className="rounded-sm border-neutral-200">
+              <CardContent className="p-5 space-y-4">
+                <div>
+                  <label className="text-sm font-medium text-neutral-700 mb-1 block">Contact Number *</label>
+                  <Input data-testid="phone-input" placeholder="Enter 10-digit phone number" value={phone} onChange={(e) => setPhone(e.target.value)} className="rounded-sm border-neutral-300" />
+                </div>
                 <div>
                   <label className="text-sm font-medium text-neutral-700 mb-1 block">Your Name</label>
                   <Input data-testid="buyer-name-input" placeholder="Optional" value={buyerName} onChange={(e) => setBuyerName(e.target.value)} className="rounded-sm border-neutral-300" />
@@ -263,12 +356,12 @@ export default function BuyerPage() {
                   <label className="text-sm font-medium text-neutral-700 mb-1 block">Company Name</label>
                   <Input data-testid="company-input" placeholder="Optional" value={company} onChange={(e) => setCompany(e.target.value)} className="rounded-sm border-neutral-300" />
                 </div>
-              </div>
-            </CardContent>
-          </Card>
+              </CardContent>
+            </Card>
+          </div>
 
           <Button data-testid="submit-rfq-btn" onClick={handleSubmit} disabled={submitting} className="w-full bg-orange-600 hover:bg-orange-700 text-white rounded-sm h-14 text-lg font-bold shadow-[4px_4px_0px_#0A0A0A] hover:shadow-[2px_2px_0px_#0A0A0A] transition-all">
-            {submitting ? "Submitting..." : "Submit Requirement"}
+            {submitting ? "Submitting..." : `Submit Requirement (${selectedCount} items)`}
           </Button>
         </div>
       </section>

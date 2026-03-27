@@ -92,11 +92,13 @@ class ProductCreate(BaseModel):
     name: str
     category: Optional[str] = "General"
     description: Optional[str] = ""
+    image_url: Optional[str] = ""
 
 class ProductUpdate(BaseModel):
     name: Optional[str] = None
     category: Optional[str] = None
     description: Optional[str] = None
+    image_url: Optional[str] = None
     is_active: Optional[bool] = None
 
 class LeadItem(BaseModel):
@@ -110,7 +112,7 @@ class LeadCreate(BaseModel):
     buyer_company: Optional[str] = ""
     city: str
     start_date: str
-    end_date: str
+    duration: str
     items: List[LeadItem]
     source: Optional[str] = "platform"
 
@@ -191,7 +193,7 @@ async def list_products(page: int = 1, limit: int = 50):
     limit = min(limit, 100)
     skip = (page - 1) * limit
     products = await db.products.find(
-        {"is_active": True}, {"_id": 0, "id": 1, "name": 1, "category": 1, "description": 1, "is_active": 1, "created_at": 1}
+        {"is_active": True}, {"_id": 0}
     ).skip(skip).limit(limit).to_list(limit)
     total = await db.products.count_documents({"is_active": True})
     return {"items": products, "total": total, "page": page, "limit": limit}
@@ -203,6 +205,7 @@ async def create_product(req: ProductCreate, user=Depends(require_admin)):
         "name": req.name,
         "category": req.category,
         "description": req.description or "",
+        "image_url": req.image_url or "",
         "is_active": True,
         "created_at": datetime.now(timezone.utc).isoformat()
     }
@@ -241,7 +244,7 @@ async def create_lead(req: LeadCreate):
         "buyer_company": req.buyer_company or "",
         "city": req.city,
         "start_date": req.start_date,
-        "end_date": req.end_date,
+        "duration": req.duration,
         "items": [item.model_dump() for item in req.items],
         "source": req.source or "platform",
         "status": "pending",
@@ -294,14 +297,8 @@ async def assign_lead(lead_id: str, req: LeadAssign, user=Depends(require_admin)
         raise HTTPException(status_code=404, detail="Lead not found")
     if lead["status"] != "verified":
         raise HTTPException(status_code=400, detail="Only verified leads can be assigned")
-    if len(req.supplier_ids) < 1 or len(req.supplier_ids) > 7:
-        raise HTTPException(status_code=400, detail="Must assign 1-7 suppliers")
-
-    # Validate: if 5+ suppliers exist, require at least 5
-    total_suppliers = await db.users.count_documents({"role": "supplier", "is_active": True})
-    min_required = min(5, total_suppliers)
-    if len(req.supplier_ids) < min_required:
-        raise HTTPException(status_code=400, detail=f"Must assign at least {min_required} suppliers (5 recommended, {total_suppliers} available)")
+    if len(req.supplier_ids) < 1:
+        raise HTTPException(status_code=400, detail="Select at least 1 supplier")
 
     # Remove existing assignments for this lead
     await db.lead_assignments.delete_many({"lead_id": lead_id})
@@ -669,18 +666,18 @@ async def startup():
     product_count = await db.products.count_documents({})
     if product_count == 0:
         products = [
-            {"name": "Scaffolding Pipe (MS Pipe)", "category": "Pipes"},
-            {"name": "Right Angle Clamp", "category": "Clamps"},
-            {"name": "Swivel Clamp", "category": "Clamps"},
-            {"name": "Cup Lock System", "category": "Systems"},
-            {"name": "H-Frame Scaffold", "category": "Frames"},
-            {"name": "Base Plate", "category": "Accessories"},
-            {"name": "Adjustable Jack", "category": "Accessories"},
-            {"name": "Walk Board (Plank)", "category": "Platforms"},
-            {"name": "Safety Net", "category": "Safety"},
-            {"name": "Scaffolding Ladder", "category": "Safety"},
-            {"name": "Caster Wheel", "category": "Accessories"},
-            {"name": "Cross Brace", "category": "Frames"},
+            {"name": "Scaffolding Pipe (MS Pipe)", "category": "Pipes", "image_url": "https://images.unsplash.com/photo-1761973673877-3139d1eae106?w=400&h=400&fit=crop"},
+            {"name": "Right Angle Clamp", "category": "Clamps", "image_url": "https://images.pexels.com/photos/7423700/pexels-photo-7423700.jpeg?auto=compress&w=400&h=400&fit=crop"},
+            {"name": "Swivel Clamp", "category": "Clamps", "image_url": "https://images.unsplash.com/photo-1645152981706-50ad7d304e9b?w=400&h=400&fit=crop"},
+            {"name": "Cup Lock System", "category": "Systems", "image_url": "https://images.unsplash.com/photo-1722496606648-624937a6ebe2?w=400&h=400&fit=crop"},
+            {"name": "H-Frame Scaffold", "category": "Frames", "image_url": "https://images.unsplash.com/photo-1772617661549-98d2ae35ab2d?w=400&h=400&fit=crop"},
+            {"name": "Base Plate", "category": "Accessories", "image_url": "https://images.pexels.com/photos/36250149/pexels-photo-36250149.jpeg?auto=compress&w=400&h=400&fit=crop"},
+            {"name": "Adjustable Jack", "category": "Accessories", "image_url": "https://images.pexels.com/photos/154141/pexels-photo-154141.jpeg?auto=compress&w=400&h=400&fit=crop"},
+            {"name": "Walk Board (Plank)", "category": "Platforms", "image_url": "https://images.unsplash.com/photo-1592298178573-2f46960268c6?w=400&h=400&fit=crop"},
+            {"name": "Safety Net", "category": "Safety", "image_url": "https://images.unsplash.com/photo-1768720378544-657201255ee0?w=400&h=400&fit=crop"},
+            {"name": "Scaffolding Ladder", "category": "Safety", "image_url": "https://images.unsplash.com/photo-1755265141513-ebd3af526cb8?w=400&h=400&fit=crop"},
+            {"name": "Caster Wheel", "category": "Accessories", "image_url": "https://images.unsplash.com/photo-1586895832537-396bcd8a0763?w=400&h=400&fit=crop"},
+            {"name": "Cross Brace", "category": "Frames", "image_url": "https://images.unsplash.com/photo-1772617661613-700063d7647f?w=400&h=400&fit=crop"},
         ]
         for p in products:
             await db.products.insert_one({
@@ -688,6 +685,7 @@ async def startup():
                 "name": p["name"],
                 "category": p["category"],
                 "description": "",
+                "image_url": p.get("image_url", ""),
                 "is_active": True,
                 "created_at": datetime.now(timezone.utc).isoformat()
             })

@@ -35,7 +35,7 @@ export default function AdminDashboard() {
   const [assignDialog, setAssignDialog] = useState(null);
   const [selectedSuppliers, setSelectedSuppliers] = useState([]);
   const [productDialog, setProductDialog] = useState(false);
-  const [newProduct, setNewProduct] = useState({ name: "", category: "General" });
+  const [newProduct, setNewProduct] = useState({ name: "", category: "General", image_url: "" });
   const [spDialog, setSpDialog] = useState(false);
   const [newSP, setNewSP] = useState({ name: "", category: "labor", phone: "", city: "", description: "" });
   const [loading, setLoading] = useState(true);
@@ -99,7 +99,7 @@ export default function AdminDashboard() {
       await api.post("/products", newProduct);
       toast.success("Product added");
       setProductDialog(false);
-      setNewProduct({ name: "", category: "General" });
+      setNewProduct({ name: "", category: "General", image_url: "" });
       fetchAll();
     } catch (err) { toast.error("Failed to add product"); }
   };
@@ -135,7 +135,7 @@ export default function AdminDashboard() {
   const citySuppliers = assignDialog ? suppliers.filter(s => s.cities_served?.includes(assignDialog.city)) : [];
   const otherSuppliers = assignDialog ? suppliers.filter(s => !s.cities_served?.includes(assignDialog.city)) : [];
   const totalAvailable = citySuppliers.length + otherSuppliers.length;
-  const minRequired = Math.min(5, totalAvailable || 1);
+  const minRequired = 1;
 
   return (
     <div className="min-h-screen bg-[#F3F4F6]">
@@ -355,6 +355,7 @@ export default function AdminDashboard() {
               <Table>
                 <TableHeader>
                   <TableRow className="border-neutral-200 bg-neutral-50">
+                    <TableHead className="text-xs font-mono uppercase w-12">Image</TableHead>
                     <TableHead className="text-xs font-mono uppercase">Name</TableHead>
                     <TableHead className="text-xs font-mono uppercase">Category</TableHead>
                     <TableHead className="text-xs font-mono uppercase">Actions</TableHead>
@@ -363,6 +364,8 @@ export default function AdminDashboard() {
                 <TableBody>
                   {products.map(p => (
                     <TableRow key={p.id} className="border-neutral-100" data-testid={`product-row-${p.id}`}>
+                      <TableCell><div className="w-10 h-10 rounded-sm overflow-hidden bg-neutral-100">{p.image_url ? <img src={p.image_url} alt="" className="w-full h-full object-cover" /> : <Package size={16} className="text-neutral-300 m-2.5" />}</div></TableCell>
+                      <TableCell><div className="w-10 h-10 rounded-sm overflow-hidden bg-neutral-100">{p.image_url ? <img src={p.image_url} alt="" className="w-full h-full object-cover" /> : <Package size={16} className="text-neutral-300 m-2.5" />}</div></TableCell>
                       <TableCell className="font-medium text-sm">{p.name}</TableCell>
                       <TableCell><Badge variant="secondary" className="rounded-sm text-xs">{p.category}</Badge></TableCell>
                       <TableCell>
@@ -433,7 +436,7 @@ export default function AdminDashboard() {
                 <p><strong>City:</strong> {assignDialog.city}</p>
                 <p><strong>Items:</strong> {assignDialog.items?.map(i => i.product_name).join(", ")}</p>
               </div>
-              <p className="text-sm text-neutral-600">Select <strong>{minRequired}-7 suppliers</strong> ({selectedSuppliers.length} selected{totalAvailable < 5 ? `, ${totalAvailable} available` : ""})</p>
+              <p className="text-sm text-neutral-600">Select suppliers to assign ({selectedSuppliers.length} selected)</p>
 
               {citySuppliers.length > 0 && (
                 <div>
@@ -488,6 +491,7 @@ export default function AdminDashboard() {
                 ))}
               </SelectContent>
             </Select>
+            <Input data-testid="product-image-input" placeholder="Image URL (optional)" value={newProduct.image_url} onChange={e => setNewProduct({ ...newProduct, image_url: e.target.value })} className="rounded-sm border-neutral-300" />
             <Button data-testid="save-product-btn" onClick={addProduct} className="w-full rounded-sm bg-orange-600 hover:bg-orange-700 text-white font-bold">Add Product</Button>
           </div>
         </DialogContent>
