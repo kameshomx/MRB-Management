@@ -99,7 +99,7 @@ export default function BuyerPage() {
     }));
   };
 
-  const addProductFromCatalogSearch = (product) => {
+  const incrementProductFromCatalogSearch = (product) => {
     setSelectedProducts((prev) => {
       if (prev[product.id]) {
         return {
@@ -112,7 +112,22 @@ export default function BuyerPage() {
       }
       return { ...prev, [product.id]: { ...product, quantity: 1 } };
     });
-    toast.success(`Added: ${product.name}`);
+  };
+
+  const decrementProductFromCatalogSearch = (product) => {
+    setSelectedProducts((prev) => {
+      const cur = prev[product.id];
+      if (!cur) return prev;
+      if (cur.quantity <= 1) {
+        const next = { ...prev };
+        delete next[product.id];
+        return next;
+      }
+      return {
+        ...prev,
+        [product.id]: { ...cur, quantity: cur.quantity - 1 },
+      };
+    });
   };
 
   const handleSubmit = async () => {
@@ -278,7 +293,7 @@ export default function BuyerPage() {
               <DialogHeader className="p-6 pb-4 space-y-1.5">
                 <DialogTitle className="text-left">Search catalog</DialogTitle>
                 <DialogDescription className="text-left">
-                  Type to filter, then tap a product to add. You can add several without closing this window.
+                  Type to filter. Use + and − on each row to change quantity; removing the last unit deselects the product.
                 </DialogDescription>
               </DialogHeader>
               <div className="px-6 pb-2">
@@ -306,15 +321,13 @@ export default function BuyerPage() {
                       const inCart = selectedProducts[p.id];
                       return (
                       <li key={p.id}>
-                        <button
-                          type="button"
+                        <div
                           data-testid={`catalog-search-option-${p.id}`}
                           data-added={inCart ? "true" : "false"}
-                          onClick={() => addProductFromCatalogSearch(p)}
-                          className={`w-full flex items-center gap-3 px-4 py-3 text-left border-b border-neutral-100/80 last:border-0 transition-colors ${
+                          className={`w-full flex items-center gap-3 px-4 py-3 border-b border-neutral-100/80 last:border-0 transition-colors ${
                             inCart
-                              ? "bg-orange-50 shadow-[inset_3px_0_0_0_#FF5A1F] hover:bg-orange-50/90"
-                              : "hover:bg-white bg-transparent"
+                              ? "bg-orange-50 shadow-[inset_3px_0_0_0_#FF5A1F]"
+                              : "bg-transparent"
                           }`}
                         >
                           <div
@@ -332,20 +345,41 @@ export default function BuyerPage() {
                               </div>
                             )}
                           </div>
-                          <div className="min-w-0 flex-1">
+                          <div className="min-w-0 flex-1 text-left">
                             <p className="text-sm font-bold leading-tight truncate">{p.name}</p>
                             <p className="text-xs text-neutral-500">{p.category}</p>
                           </div>
-                          {inCart ? (
-                            <span
-                              className="flex-shrink-0 rounded-sm bg-orange-600 text-white text-xs font-bold font-mono tabular-nums min-w-[2.25rem] px-2 py-1 text-center"
-                              data-testid={`catalog-search-qty-${p.id}`}
+                          <div className="flex items-center gap-1.5 flex-shrink-0">
+                            {inCart ? (
+                              <button
+                                type="button"
+                                data-testid={`catalog-search-minus-${p.id}`}
+                                aria-label="Decrease quantity or remove"
+                                onClick={() => decrementProductFromCatalogSearch(p)}
+                                className="w-8 h-8 flex items-center justify-center border border-neutral-300 rounded-sm bg-white hover:bg-neutral-100 text-neutral-800"
+                              >
+                                <Minus size={14} weight="bold" />
+                              </button>
+                            ) : null}
+                            {inCart ? (
+                              <span
+                                className="rounded-sm bg-orange-600 text-white text-xs font-bold font-mono tabular-nums min-w-[2.25rem] px-2 py-1 text-center leading-none"
+                                data-testid={`catalog-search-qty-${p.id}`}
+                              >
+                                ×{inCart.quantity}
+                              </span>
+                            ) : null}
+                            <button
+                              type="button"
+                              data-testid={`catalog-search-plus-${p.id}`}
+                              aria-label="Increase quantity or add"
+                              onClick={() => incrementProductFromCatalogSearch(p)}
+                              className="w-8 h-8 flex items-center justify-center border border-orange-500 rounded-sm bg-orange-50 hover:bg-orange-100 text-orange-700"
                             >
-                              ×{inCart.quantity}
-                            </span>
-                          ) : null}
-                          <Plus size={18} weight="bold" className={`flex-shrink-0 ${inCart ? "text-orange-700" : "text-orange-600"}`} />
-                        </button>
+                              <Plus size={16} weight="bold" />
+                            </button>
+                          </div>
+                        </div>
                       </li>
                       );
                     })}
