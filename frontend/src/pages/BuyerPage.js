@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -9,8 +9,18 @@ import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { format } from "date-fns";
 import { toast } from "sonner";
-import { CalendarBlank, Package, MapPin, Phone, Buildings, PaperPlaneTilt, HardHat, ArrowRight, CheckCircle, Plus, Minus, X } from "@phosphor-icons/react";
+import { CalendarBlank, Package, Buildings, PaperPlaneTilt, HardHat, ArrowRight, CheckCircle, Plus, Minus, X, MagnifyingGlass } from "@phosphor-icons/react";
 import api from "@/lib/api";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+
+const DEFAULT_GRID_PRODUCTS = 11;
 
 const DURATION_OPTIONS = [
   "1 Month", "2 Months", "3 Months", "4 Months", "5 Months", "6 Months",
@@ -23,10 +33,9 @@ export default function BuyerPage() {
   const [cities, setCities] = useState([]);
   const [suppliers, setSuppliers] = useState([]);
   const [selectedProducts, setSelectedProducts] = useState({});
-  const [showCustom, setShowCustom] = useState(false);
-  const [customProduct, setCustomProduct] = useState("");
-  const [customQty, setCustomQty] = useState("");
-  const [customItems, setCustomItems] = useState([]);
+  const [catalogSearchOpen, setCatalogSearchOpen] = useState(false);
+  const [catalogSearchQuery, setCatalogSearchQuery] = useState("");
+  const catalogSearchInputRef = useRef(null);
   const [city, setCity] = useState("");
   const [startDate, setStartDate] = useState(null);
   const [duration, setDuration] = useState("");
@@ -38,10 +47,37 @@ export default function BuyerPage() {
   const [submitted, setSubmitted] = useState(false);
 
   useEffect(() => {
-    api.get("/products").then(r => setProducts(r.data.items || r.data)).catch(() => {});
+    api
+      .get("/products", { params: { limit: 100 } })
+      .then((r) => {
+        const raw = r.data.items ?? r.data;
+        setProducts(Array.isArray(raw) ? raw : []);
+      })
+      .catch(() => setProducts([]));
     api.get("/public/cities").then(r => setCities(r.data)).catch(() => {});
     api.get("/public/suppliers").then(r => setSuppliers(r.data)).catch(() => {});
   }, []);
+
+  useEffect(() => {
+    if (!catalogSearchOpen) return;
+    const t = requestAnimationFrame(() => catalogSearchInputRef.current?.focus());
+    return () => cancelAnimationFrame(t);
+  }, [catalogSearchOpen]);
+
+  const gridProducts = useMemo(
+    () => products.slice(0, DEFAULT_GRID_PRODUCTS),
+    [products]
+  );
+
+  const catalogSearchResults = useMemo(() => {
+    const q = catalogSearchQuery.trim().toLowerCase();
+    if (!q) return products;
+    return products.filter(
+      (p) =>
+        p.name.toLowerCase().includes(q) ||
+        p.category.toLowerCase().includes(q)
+    );
+  }, [catalogSearchQuery, products]);
 
   const toggleProduct = (product) => {
     setSelectedProducts(prev => {
@@ -63,18 +99,20 @@ export default function BuyerPage() {
     }));
   };
 
-  const addCustomItem = () => {
-    if (!customProduct.trim() || !customQty || parseInt(customQty) <= 0) {
-      toast.error("Enter product name and quantity");
-      return;
-    }
-    setCustomItems(prev => [...prev, { product_name: customProduct.trim(), quantity: parseInt(customQty) }]);
-    setCustomProduct("");
-    setCustomQty("");
-  };
-
-  const removeCustomItem = (idx) => {
-    setCustomItems(prev => prev.filter((_, i) => i !== idx));
+  const addProductFromCatalogSearch = (product) => {
+    setSelectedProducts((prev) => {
+      if (prev[product.id]) {
+        return {
+          ...prev,
+          [product.id]: {
+            ...prev[product.id],
+            quantity: prev[product.id].quantity + 1,
+          },
+        };
+      }
+      return { ...prev, [product.id]: { ...product, quantity: 1 } };
+    });
+    toast.success(`Added: ${product.name}`);
   };
 
   const handleSubmit = async () => {
@@ -83,9 +121,8 @@ export default function BuyerPage() {
       product_id: p.id,
       quantity: p.quantity
     }));
-    const allItems = [...catalogItems, ...customItems];
 
-    if (allItems.length === 0) { toast.error("Select at least one product"); return; }
+    if (catalogItems.length === 0) { toast.error("Select at least one product"); return; }
     if (!city) { toast.error("Select a city"); return; }
     if (!startDate) { toast.error("Select a start date"); return; }
     const finalDuration = duration === "custom" ? customDuration : duration;
@@ -101,7 +138,7 @@ export default function BuyerPage() {
         city,
         start_date: format(startDate, "yyyy-MM-dd"),
         duration: finalDuration,
-        items: allItems,
+        items: catalogItems,
         source: "platform"
       });
       toast.success("Requirement submitted successfully!");
@@ -122,7 +159,7 @@ export default function BuyerPage() {
             </div>
             <h2 className="text-2xl font-bold mb-2">Requirement Submitted</h2>
             <p className="text-neutral-600 mb-6">Our team will verify and connect you with the best suppliers in your area.</p>
-            <Button data-testid="submit-another-btn" onClick={() => { setSubmitted(false); setSelectedProducts({}); setCustomItems([]); setPhone(""); setBuyerName(""); setCompany(""); setCity(""); setStartDate(null); setDuration(""); setCustomDuration(""); }} className="bg-orange-600 hover:bg-orange-700 text-white rounded-sm w-full">
+            <Button data-testid="submit-another-btn" onClick={() => { setSubmitted(false); setSelectedProducts({}); setPhone(""); setBuyerName(""); setCompany(""); setCity(""); setStartDate(null); setDuration(""); setCustomDuration(""); }} className="bg-orange-600 hover:bg-orange-700 text-white rounded-sm w-full">
               Submit Another Requirement
             </Button>
           </CardContent>
@@ -131,7 +168,7 @@ export default function BuyerPage() {
     );
   }
 
-  const selectedCount = Object.keys(selectedProducts).length + customItems.length;
+  const selectedCount = Object.keys(selectedProducts).length;
 
   return (
     <div className="min-h-screen bg-white">
@@ -173,11 +210,11 @@ export default function BuyerPage() {
         <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="overline mb-3">Step 1: Select Products</div>
           <h2 className="text-2xl sm:text-3xl font-bold tracking-tight mb-2">What do you need?</h2>
-          <p className="text-neutral-500 text-sm mb-8">Tap to select products, then set quantities for each</p>
+          <p className="text-neutral-500 text-sm mb-8">Tap to select from popular items, or search the full catalog. Adjust quantities below.</p>
 
           {/* Product Grid */}
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4 mb-6">
-            {products.map(p => {
+            {gridProducts.map(p => {
               const isSelected = !!selectedProducts[p.id];
               return (
                 <div
@@ -212,38 +249,125 @@ export default function BuyerPage() {
               );
             })}
 
-            {/* Add Custom Product Card */}
-            <div
-              data-testid="add-custom-product-card"
-              onClick={() => setShowCustom(true)}
-              className="cursor-pointer rounded-sm border-2 border-dashed border-neutral-300 hover:border-orange-400 bg-white flex flex-col items-center justify-center min-h-[200px] transition-all"
+            <button
+              type="button"
+              data-testid="search-products-card"
+              onClick={() => {
+                setCatalogSearchQuery("");
+                setCatalogSearchOpen(true);
+              }}
+              className="cursor-pointer rounded-sm border-2 border-dashed border-neutral-300 hover:border-orange-400 bg-white flex flex-col items-center justify-center min-h-[200px] transition-all text-left w-full"
             >
-              <Plus size={32} className="text-neutral-400 mb-2" />
-              <p className="text-sm font-bold text-neutral-500">Add Custom</p>
-              <p className="text-xs text-neutral-400">Product</p>
-            </div>
+              <MagnifyingGlass size={32} className="text-orange-500 mb-2" weight="bold" />
+              <p className="text-sm font-bold text-neutral-800">Search products</p>
+              <p className="text-xs text-neutral-500 mt-0.5 px-3 text-center">Add from full catalog</p>
+            </button>
           </div>
 
-          {/* Custom Product Input */}
-          {showCustom && (
-            <Card className="rounded-sm border-neutral-200 mb-6" data-testid="custom-product-section">
-              <CardContent className="p-4">
-                <div className="flex flex-col sm:flex-row gap-3">
-                  <Input data-testid="custom-product-input" placeholder="Product name" value={customProduct} onChange={(e) => setCustomProduct(e.target.value)} className="flex-1 rounded-sm border-neutral-300" />
-                  <Input data-testid="custom-quantity-input" type="number" placeholder="Qty" value={customQty} onChange={(e) => setCustomQty(e.target.value)} className="w-24 rounded-sm border-neutral-300" />
-                  <Button data-testid="add-custom-btn" onClick={addCustomItem} className="bg-neutral-900 hover:bg-neutral-800 text-white rounded-sm">
-                    <Plus size={16} className="mr-1" /> Add
-                  </Button>
-                  <Button variant="outline" onClick={() => setShowCustom(false)} className="rounded-sm border-neutral-300">
-                    <X size={16} />
-                  </Button>
+          <Dialog
+            open={catalogSearchOpen}
+            onOpenChange={(open) => {
+              setCatalogSearchOpen(open);
+              if (!open) setCatalogSearchQuery("");
+            }}
+          >
+            <DialogContent
+              className="max-w-lg rounded-sm border-neutral-200 sm:rounded-sm gap-0 p-0 overflow-hidden"
+              onOpenAutoFocus={(e) => e.preventDefault()}
+            >
+              <DialogHeader className="p-6 pb-4 space-y-1.5">
+                <DialogTitle className="text-left">Search catalog</DialogTitle>
+                <DialogDescription className="text-left">
+                  Type to filter, then tap a product to add. You can add several without closing this window.
+                </DialogDescription>
+              </DialogHeader>
+              <div className="px-6 pb-2">
+                <div className="relative">
+                  <MagnifyingGlass className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400 pointer-events-none" size={18} weight="bold" />
+                  <Input
+                    ref={catalogSearchInputRef}
+                    data-testid="catalog-search-input"
+                    placeholder="Search by name or category…"
+                    value={catalogSearchQuery}
+                    onChange={(e) => setCatalogSearchQuery(e.target.value)}
+                    className="pl-10 rounded-sm border-neutral-300"
+                  />
                 </div>
-              </CardContent>
-            </Card>
-          )}
+              </div>
+              <div
+                className="border-t border-neutral-200 bg-neutral-50 max-h-[min(50vh,320px)] overflow-y-auto mx-0"
+                data-testid="catalog-search-results"
+              >
+                {catalogSearchResults.length === 0 ? (
+                  <p className="text-sm text-neutral-500 p-4 text-center">No products match your search.</p>
+                ) : (
+                  <ul className="py-1">
+                    {catalogSearchResults.map((p) => {
+                      const inCart = selectedProducts[p.id];
+                      return (
+                      <li key={p.id}>
+                        <button
+                          type="button"
+                          data-testid={`catalog-search-option-${p.id}`}
+                          data-added={inCart ? "true" : "false"}
+                          onClick={() => addProductFromCatalogSearch(p)}
+                          className={`w-full flex items-center gap-3 px-4 py-3 text-left border-b border-neutral-100/80 last:border-0 transition-colors ${
+                            inCart
+                              ? "bg-orange-50 shadow-[inset_3px_0_0_0_#FF5A1F] hover:bg-orange-50/90"
+                              : "hover:bg-white bg-transparent"
+                          }`}
+                        >
+                          <div
+                            className={`w-11 h-11 rounded-sm overflow-hidden flex-shrink-0 ${
+                              inCart
+                                ? "ring-2 ring-orange-500 ring-offset-2 ring-offset-orange-50"
+                                : "bg-neutral-200"
+                            }`}
+                          >
+                            {p.image_url ? (
+                              <img src={p.image_url} alt="" className="w-full h-full object-cover" />
+                            ) : (
+                              <div className="w-full h-full flex items-center justify-center bg-neutral-200">
+                                <Package size={22} className="text-neutral-400" />
+                              </div>
+                            )}
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <p className="text-sm font-bold leading-tight truncate">{p.name}</p>
+                            <p className="text-xs text-neutral-500">{p.category}</p>
+                          </div>
+                          {inCart ? (
+                            <span
+                              className="flex-shrink-0 rounded-sm bg-orange-600 text-white text-xs font-bold font-mono tabular-nums min-w-[2.25rem] px-2 py-1 text-center"
+                              data-testid={`catalog-search-qty-${p.id}`}
+                            >
+                              ×{inCart.quantity}
+                            </span>
+                          ) : null}
+                          <Plus size={18} weight="bold" className={`flex-shrink-0 ${inCart ? "text-orange-700" : "text-orange-600"}`} />
+                        </button>
+                      </li>
+                      );
+                    })}
+                  </ul>
+                )}
+              </div>
+              <DialogFooter className="p-4 pt-3 border-t border-neutral-200 bg-white sm:justify-end gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  data-testid="catalog-search-done-btn"
+                  className="rounded-sm border-neutral-300"
+                  onClick={() => setCatalogSearchOpen(false)}
+                >
+                  Done
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
 
           {/* Selected Products with Quantities */}
-          {(Object.keys(selectedProducts).length > 0 || customItems.length > 0) && (
+          {Object.keys(selectedProducts).length > 0 && (
             <Card className="rounded-sm border-orange-200 bg-orange-50/50 mb-8" data-testid="selected-products-section">
               <CardHeader className="border-b border-orange-200 pb-3 pt-4 px-4">
                 <CardTitle className="text-base flex items-center gap-2">
@@ -273,21 +397,6 @@ export default function BuyerPage() {
                       </button>
                     </div>
                     <button data-testid={`remove-product-${p.id}`} onClick={() => toggleProduct(p)} className="text-red-500 hover:text-red-700 ml-1">
-                      <X size={16} weight="bold" />
-                    </button>
-                  </div>
-                ))}
-                {customItems.map((item, idx) => (
-                  <div key={`custom-${idx}`} className="flex items-center gap-3 px-4 py-3 border-b border-orange-100 last:border-0" data-testid={`custom-item-${idx}`}>
-                    <div className="w-10 h-10 rounded-sm bg-neutral-100 flex-shrink-0 flex items-center justify-center">
-                      <Package size={20} className="text-neutral-300" />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-bold truncate">{item.product_name}</p>
-                      <p className="text-xs text-neutral-500">Custom</p>
-                    </div>
-                    <span className="font-mono text-sm font-bold">{item.quantity}</span>
-                    <button data-testid={`remove-custom-${idx}`} onClick={() => removeCustomItem(idx)} className="text-red-500 hover:text-red-700 ml-1">
                       <X size={16} weight="bold" />
                     </button>
                   </div>
